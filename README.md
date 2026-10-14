@@ -4,12 +4,47 @@ An NES emulator written in C++ (now with audio!)
 
 Roughly 50-60% of games should work (ie. games that use either no mapper or mappers 1, 2, 3 and experimental support for 4, 7, 66 and 11).
 
----
+This repo is a wasm-based vscode plugin.
 
-**ARCHIVED**: I no longer have the capacity or motivation to entertain new features/issues/PRs. Feel free to fork and/or use the current build.  
+**Screenshots**
 
----
+![Screenshot of VS Code Plugin](docs/images/vscode-plugin.png)
 
+
+WebAssembly and the VS Code extension
+-------------------------------------
+
+The toolchain stays inside `.tools/` in this repository. Nothing is installed into the system or your shell startup files.
+
+One-time setup. `emsdk` itself needs Python 3.10 or newer; if `python3` is older, point `EMSDK_PYTHON` at a newer interpreter before `./emsdk install`:
+
+```
+$ git clone --depth 1 https://github.com/emscripten-core/emsdk.git .tools/emsdk
+$ cd .tools/emsdk
+$ ./emsdk install latest
+$ ./emsdk activate latest --embedded
+$ cd ../..
+```
+
+Compile the emulator to WebAssembly. This writes `web/dist/` (open `index.html` in a browser) and copies the same bundle into `vscode-extension/media/`:
+
+```
+$ scripts/build-wasm.sh
+```
+
+Build the installable extension. This compiles WebAssembly again, then packs `simplenes-0.1.0.vsix` at the repository root. The packager is downloaded into `.tools/vsce` on first run:
+
+```
+$ scripts/package-vscode.sh
+```
+
+Install that package in Cursor or VS Code:
+
+```
+$ cursor --install-extension simplenes-0.1.0.vsix
+```
+
+Open a `.nes` file and it runs in the editor. Player 1 uses W A S D, J for A, K for B, Enter for Start, and Right Shift for Select. Click the picture once so the keyboard is captured.
 
 
 Examples of games that have been tested to run (but NOT limited to):
