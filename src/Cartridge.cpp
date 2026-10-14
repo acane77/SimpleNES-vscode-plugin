@@ -2,6 +2,7 @@
 #include "Log.h"
 #include "Mapper.h"
 #include <fstream>
+#include <iterator>
 #include <string>
 
 namespace sn
@@ -47,17 +48,21 @@ bool Cartridge::loadFromFile(std::string path)
         return false;
     }
 
-    std::vector<Byte> header;
+    std::vector<Byte> bytes((std::istreambuf_iterator<char>(romFile)), std::istreambuf_iterator<char>());
     LOG(Info) << "Reading ROM from path: " << path << std::endl;
+    return loadFromMemory(bytes.data(), bytes.size());
+}
 
-    // Header
-    header.resize(0x10);
-    if (!romFile.read(reinterpret_cast<char*>(&header[0]), 0x10))
+bool Cartridge::loadFromMemory(const Byte* data, std::size_t size)
+{
+    if (data == nullptr || size < 0x10)
     {
         LOG(Error) << "Reading iNES header failed." << std::endl;
         return false;
     }
-    if (std::string { &header[0], &header[4] } != "NES\x1A")
+
+    const Byte* header = data;
+    if (std::string { reinterpret_cast<const char*>(header), reinterpret_cast<const char*>(header) + 4 } != "NES\x1A")
     {
         LOG(Error) << "Not a valid iNES image. Magic number: " << std::hex << header[0] << " " << header[1] << " "
                    << header[2] << " " << int(header[3]) << std::endl
@@ -109,26 +114,25 @@ bool Cartridge::loadFromFile(std::string path)
     else
         LOG(Info) << "ROM is NTSC compatible.\n";
 
-    // PRG-ROM 16KB banks
-    m_PRG_ROM.resize(0x4000 * banks);
-    if (!romFile.read(reinterpret_cast<char*>(&m_PRG_ROM[0]), 0x4000 * banks))
+    const std::size_t prgBytes = static_cast<std::size_t>(0x4000) * banks;
+    const std::size_t chrBytes = static_cast<std::size_t>(0x2000) * vbanks;
+    if (size < 0x10 + prgBytes + chrBytes)
     {
         LOG(Error) << "Reading PRG-ROM from image file failed." << std::endl;
         return false;
     }
 
-    // CHR-ROM 8KB banks
+    const Byte* cursor = data + 0x10;
+    m_PRG_ROM.assign(cursor, cursor + prgBytes);
+    cursor += prgBytes;
+
     if (vbanks)
-    {
-        m_CHR_ROM.resize(0x2000 * vbanks);
-        if (!romFile.read(reinterpret_cast<char*>(&m_CHR_ROM[0]), 0x2000 * vbanks))
-        {
-            LOG(Error) << "Reading CHR-ROM from image file failed." << std::endl;
-            return false;
-        }
-    }
+        m_CHR_ROM.assign(cursor, cursor + chrBytes);
     else
+    {
+        m_CHR_ROM.clear();
         LOG(Info) << "Cartridge with CHR-RAM." << std::endl;
+    }
     return true;
 }
 }

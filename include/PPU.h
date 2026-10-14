@@ -94,9 +94,9 @@ private:
     } m_bgPage,
       m_sprPage;
 
-    Address                             m_dataAddrIncrement;
+    Address                          m_dataAddrIncrement;
 
-    std::vector<std::vector<sf::Color>> m_pictureBuffer;
+    std::vector<std::vector<Color>>      m_pictureBuffer;
 };
 }
 

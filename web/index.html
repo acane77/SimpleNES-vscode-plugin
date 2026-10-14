@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SimpleNES</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #111;
+      color: #eee;
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 24px 16px 40px;
+    }
+    h1 { font-size: 22px; margin: 0; font-weight: 600; }
+    canvas {
+      width: min(100%, 768px);
+      height: auto;
+      aspect-ratio: 256 / 240;
+      background: #000;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      outline: none;
+      box-shadow: 0 0 0 1px #333;
+    }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    button, input { font: inherit; }
+    button {
+      background: #2a6;
+      color: #fff;
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    #status { margin: 0; color: #bbb; }
+    .help { margin: 0; max-width: 720px; text-align: center; color: #999; }
+  </style>
+</head>
+<body>
+  <h1>SimpleNES</h1>
+  <div class="row">
+    <input id="rom" type="file" accept=".nes,application/octet-stream">
+    <button id="demo" type="button">运行测试画面</button>
+  </div>
+  <canvas id="screen" width="256" height="240" tabindex="0"></canvas>
+  <p id="status">选择一个 .nes 文件，或先跑测试画面。点一下画面后键盘才会生效。</p>
+  <p class="help">玩家 1：W A S D 方向，J = A，K = B，Enter = Start，右 Shift = Select。F2 暂停。</p>
+  <script src="SimpleNES.js"></script>
+  <script src="runtime.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const canvas = document.getElementById("screen");
+    createSimpleNES().then((Module) => {
+      const player = attachSimpleNES(Module, canvas);
+      document.getElementById("rom").addEventListener("change", async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const rc = player.loadRom(bytes);
+        statusEl.textContent = rc === 0 ? ("运行中：" + file.name) : "这个文件不是可运行的 iNES ROM";
+      });
+      document.getElementById("demo").addEventListener("click", async () => {
+        const response = await fetch("solid.nes");
+        if (!response.ok) {
+          statusEl.textContent = "找不到测试 ROM";
+          return;
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const rc = player.loadRom(bytes);
+        statusEl.textContent = rc === 0 ? "运行中：测试画面（纯色）" : "测试 ROM 加载失败";
+      });
+    }).catch((error) => {
+      statusEl.textContent = "模拟器加载失败：" + error;
+    });
+  </script>
+</body>
+</html>

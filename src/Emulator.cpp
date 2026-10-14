@@ -1,8 +1,14 @@
 #include "Emulator.h"
 #include "APU/Constants.h"
+#include "KeyInput.h"
+#include "Keys.h"
 #include "Log.h"
 
 #include <chrono>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 namespace sn
 {
@@ -20,11 +26,22 @@ Emulator::Emulator()
     m_ppu.setInterruptCallback([&]() { m_cpu.nmiInterrupt(); });
 }
 
-void Emulator::run(std::string rom_path)
+bool Emulator::bootFromFile(const std::string& rom_path)
 {
     if (!m_cartridge.loadFromFile(rom_path))
-        return;
+        return false;
+    return finishBoot();
+}
 
+bool Emulator::bootFromMemory(const std::uint8_t* data, std::size_t size)
+{
+    if (!m_cartridge.loadFromMemory(data, size))
+        return false;
+    return finishBoot();
+}
+
+bool Emulator::finishBoot()
+{
     m_mapper = Mapper::createMapper(static_cast<Mapper::Type>(m_cartridge.getMapper()),
                                     m_cartridge,
                                     m_cpu.createIRQHandler(),
@@ -32,28 +49,122 @@ void Emulator::run(std::string rom_path)
     if (!m_mapper)
     {
         LOG(Error) << "Creating Mapper failed. Probably unsupported." << std::endl;
-        return;
+        return false;
     }
 
     if (!m_bus.setMapper(m_mapper.get()) || !m_pictureBus.setMapper(m_mapper.get()))
-    {
-        return;
-    }
+        return false;
 
     m_cpu.reset();
     m_ppu.reset();
 
+#ifndef __EMSCRIPTEN__
     m_window.create(sf::VideoMode(NESVideoWidth * m_screenScale, NESVideoHeight * m_screenScale),
                     "SimpleNES",
                     sf::Style::Titlebar | sf::Style::Close);
     m_window.setVerticalSyncEnabled(true);
-    m_emulatorScreen.create(NESVideoWidth, NESVideoHeight, m_screenScale, sf::Color::White);
+#endif
+    m_emulatorScreen.create(NESVideoWidth, NESVideoHeight, m_screenScale, Color(255, 255, 255));
 
     m_lastWakeup  = high_resolution_clock::now();
     m_elapsedTime = m_lastWakeup - m_lastWakeup;
 
     m_audioPlayer.start();
+    return true;
+}
 
+void Emulator::stepMachine()
+{
+    m_ppu.step();
+    m_ppu.step();
+    m_ppu.step();
+    m_cpu.step();
+    m_apu.step();
+}
+
+void Emulator::advanceTime()
+{
+    const auto now = high_resolution_clock::now();
+    m_elapsedTime += now - m_lastWakeup;
+    m_lastWakeup   = now;
+
+#ifdef __EMSCRIPTEN__
+    int             steps = 0;
+    constexpr int   maxSteps = 29781 * 2;
+    while (m_elapsedTime > cpu_clock_period_ns && steps < maxSteps)
+    {
+        stepMachine();
+        m_elapsedTime -= cpu_clock_period_ns;
+        ++steps;
+    }
+    if (steps >= maxSteps)
+        m_elapsedTime = Duration::zero();
+#else
+    while (m_elapsedTime > cpu_clock_period_ns)
+    {
+        stepMachine();
+        m_elapsedTime -= cpu_clock_period_ns;
+    }
+#endif
+}
+
+void Emulator::present()
+{
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+      {
+          if (typeof Module.nesPresent === 'function')
+              Module.nesPresent($0, $1, $2);
+      },
+      m_emulatorScreen.pixels(),
+      NESVideoWidth,
+      NESVideoHeight);
+#else
+    m_window.draw(m_emulatorScreen);
+    m_window.display();
+#endif
+}
+
+void Emulator::tick()
+{
+#ifdef __EMSCRIPTEN__
+    const bool f2 = isKeyDown(KeyF2);
+    if (f2 && !m_prevF2)
+    {
+        m_pause = !m_pause;
+        if (!m_pause)
+            m_lastWakeup = high_resolution_clock::now();
+    }
+    m_prevF2 = f2;
+
+    const bool f3 = isKeyDown(KeyF3);
+    if (m_pause && f3 && !m_prevF3)
+    {
+        for (int i = 0; i < 29781; ++i)
+            stepMachine();
+        present();
+    }
+    m_prevF3 = f3;
+
+    if (isKeyDown(KeyF4))
+        Log::get().setLevel(Info);
+    if (isKeyDown(KeyF5))
+        Log::get().setLevel(InfoVerbose);
+
+    if (!m_pause)
+    {
+        advanceTime();
+        present();
+    }
+#endif
+}
+
+void Emulator::run(std::string rom_path)
+{
+    if (!bootFromFile(rom_path))
+        return;
+
+#ifndef __EMSCRIPTEN__
     sf::Event event;
     bool      focus = true, pause = false;
     while (m_window.isOpen())
@@ -94,17 +205,8 @@ void Emulator::run(std::string rom_path)
             }
             else if (pause && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F3)
             {
-                for (int i = 0; i < 29781; ++i) // Around one frame
-                {
-                    // PPU
-                    m_ppu.step();
-                    m_ppu.step();
-                    m_ppu.step();
-                    // CPU
-                    m_cpu.step();
-                    // APU
-                    m_apu.step();
-                }
+                for (int i = 0; i < 29781; ++i)
+                    stepMachine();
             }
             else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F4)
             {
@@ -118,32 +220,17 @@ void Emulator::run(std::string rom_path)
 
         if (focus && !pause)
         {
-            const auto now  = high_resolution_clock::now();
-            m_elapsedTime  += now - m_lastWakeup;
-            m_lastWakeup    = now;
-
-            while (m_elapsedTime > cpu_clock_period_ns)
-            {
-                // PPU
-                m_ppu.step();
-                m_ppu.step();
-                m_ppu.step();
-                // CPU
-                m_cpu.step();
-                // APU
-                m_apu.step();
-
-                m_elapsedTime -= cpu_clock_period_ns;
-            }
-
-            m_window.draw(m_emulatorScreen);
-            m_window.display();
+            advanceTime();
+            present();
         }
         else
         {
             sf::sleep(sf::milliseconds(1000 / 60));
         }
     }
+#else
+    (void)rom_path;
+#endif
 }
 
 void Emulator::OAMDMA(Byte page)
@@ -186,7 +273,7 @@ void Emulator::setVideoScale(float scale)
               << int(NESVideoHeight * m_screenScale) << std::endl;
 }
 
-void Emulator::setKeys(std::vector<sf::Keyboard::Key>& p1, std::vector<sf::Keyboard::Key>& p2)
+void Emulator::setKeys(std::vector<int>& p1, std::vector<int>& p2)
 {
     m_controller1.setKeyBindings(p1);
     m_controller2.setKeyBindings(p2);

@@ -1,22 +1,16 @@
 #include "Controller.h"
+#include "KeyInput.h"
 
 namespace sn
 {
 Controller::Controller()
-  : m_keyStates(0)
+  : m_strobe(false)
+  , m_keyStates(0)
   , m_keyBindings(TotalButtons)
 {
-    //         m_keyBindings[A] = sf::Keyboard::J;
-    //         m_keyBindings[B] = sf::Keyboard::K;
-    //         m_keyBindings[Select] = sf::Keyboard::RShift;
-    //         m_keyBindings[Start] = sf::Keyboard::Return;
-    //         m_keyBindings[Up] = sf::Keyboard::W;
-    //         m_keyBindings[Down] = sf::Keyboard::S;
-    //         m_keyBindings[Left] = sf::Keyboard::A;
-    //         m_keyBindings[Right] = sf::Keyboard::D;
 }
 
-void Controller::setKeyBindings(const std::vector<sf::Keyboard::Key>& keys)
+void Controller::setKeyBindings(const std::vector<int>& keys)
 {
     m_keyBindings = keys;
 }
@@ -30,7 +24,7 @@ void Controller::strobe(Byte b)
         int shift   = 0;
         for (int button = A; button < TotalButtons; ++button)
         {
-            m_keyStates |= (sf::Keyboard::isKeyPressed(m_keyBindings[static_cast<Buttons>(button)]) << shift);
+            m_keyStates |= (isKeyDown(m_keyBindings[static_cast<Buttons>(button)]) << shift);
             ++shift;
         }
     }
@@ -40,7 +34,7 @@ Byte Controller::read()
 {
     Byte ret;
     if (m_strobe)
-        ret = sf::Keyboard::isKeyPressed(m_keyBindings[A]);
+        ret = isKeyDown(m_keyBindings[A]);
     else
     {
         ret           = (m_keyStates & 1);
@@ -50,3 +44,17 @@ Byte Controller::read()
 }
 
 }
+
+#ifndef __EMSCRIPTEN__
+#include <SFML/Window/Keyboard.hpp>
+
+namespace sn
+{
+bool isKeyDown(int key)
+{
+    if (key < 0)
+        return false;
+    return sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(key));
+}
+}
+#endif

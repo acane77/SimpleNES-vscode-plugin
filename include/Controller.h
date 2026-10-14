@@ -1,6 +1,5 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
-#include <SFML/Window.hpp>
 #include <cstdint>
 #include <vector>
 
@@ -26,13 +25,13 @@ public:
 
     void strobe(Byte b);
     Byte read();
-    void setKeyBindings(const std::vector<sf::Keyboard::Key>& keys);
+    void setKeyBindings(const std::vector<int>& keys);
 
 private:
-    bool                           m_strobe;
-    unsigned int                   m_keyStates;
+    bool              m_strobe;
+    unsigned int      m_keyStates;
 
-    std::vector<sf::Keyboard::Key> m_keyBindings;
+    std::vector<int>  m_keyBindings;
 };
 }
 

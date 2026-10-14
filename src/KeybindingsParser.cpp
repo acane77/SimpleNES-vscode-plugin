@@ -25,7 +25,7 @@ inline std::string rtrim(const std::string& str)
     return s;
 }
 
-void parseControllerConf(std::string filepath, std::vector<sf::Keyboard::Key>& p1, std::vector<sf::Keyboard::Key>& p2)
+void parseControllerConf(std::string filepath, std::vector<int>& p1, std::vector<int>& p2)
 {
     const std::string buttonStrings[] = { "A", "B", "Select", "Start", "Up", "Down", "Left", "Right" };
     const std::string keys[]          = {
@@ -78,7 +78,7 @@ void parseControllerConf(std::string filepath, std::vector<sf::Keyboard::Key>& p
             }
             auto i                          = std::distance(std::begin(buttonStrings), it);
             auto key                        = std::distance(std::begin(keys), it2);
-            (state == Player1 ? p1 : p2)[i] = static_cast<sf::Keyboard::Key>(key);
+            (state == Player1 ? p1 : p2)[i] = static_cast<int>(key);
         }
         else
             LOG(Error) << "Invalid line in key configuration at Line " << line_no << std::endl;

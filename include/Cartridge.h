@@ -1,5 +1,6 @@
 #ifndef CARTRIDGE_H
 #define CARTRIDGE_H
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -14,6 +15,7 @@ class Cartridge
 public:
     Cartridge();
     bool                     loadFromFile(std::string path);
+    bool                     loadFromMemory(const Byte* data, std::size_t size);
     const std::vector<Byte>& getROM();
     const std::vector<Byte>& getVROM();
     Byte                     getMapper();

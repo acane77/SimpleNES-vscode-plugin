@@ -1,12 +1,24 @@
 #include "Emulator.h"
+#include "Keys.h"
 #include "Log.h"
 #include <sstream>
 #include <string>
 
 namespace sn
 {
-void parseControllerConf(std::string filepath, std::vector<sf::Keyboard::Key>& p1, std::vector<sf::Keyboard::Key>& p2);
+void parseControllerConf(std::string filepath, std::vector<int>& p1, std::vector<int>& p2);
 }
+
+#ifdef __EMSCRIPTEN__
+
+int main()
+{
+    sn::Log::get().setLogStream(std::cout);
+    sn::Log::get().setLevel(sn::Info);
+    return 0;
+}
+
+#else
 
 int main(int argc, char** argv)
 {
@@ -24,10 +36,9 @@ int main(int argc, char** argv)
     std::string                    keybindingsPath = "keybindings.conf";
 
     // Default keybindings
-    std::vector<sf::Keyboard::Key> p1 { sf::Keyboard::J, sf::Keyboard::K, sf::Keyboard::RShift, sf::Keyboard::Return,
-                                        sf::Keyboard::W, sf::Keyboard::S, sf::Keyboard::A,      sf::Keyboard::D },
-      p2 { sf::Keyboard::Numpad5, sf::Keyboard::Numpad6, sf::Keyboard::Numpad8, sf::Keyboard::Numpad9,
-           sf::Keyboard::Up,      sf::Keyboard::Down,    sf::Keyboard::Left,    sf::Keyboard::Right };
+    std::vector<int> p1 { sn::KeyJ, sn::KeyK, sn::KeyRShift, sn::KeyReturn, sn::KeyW, sn::KeyS, sn::KeyA, sn::KeyD },
+      p2 { sn::KeyNumpad5, sn::KeyNumpad6, sn::KeyNumpad8, sn::KeyNumpad9,
+           sn::KeyUp,      sn::KeyDown,    sn::KeyLeft,    sn::KeyRight };
     sn::Emulator emulator;
 
     for (int i = 1; i < argc; ++i)
@@ -122,3 +133,5 @@ int main(int argc, char** argv)
     emulator.run(path);
     return 0;
 }
+
+#endif

@@ -1,0 +1,28 @@
+{
+  "name": "simplenes",
+  "displayName": "SimpleNES",
+  "description": "在编辑器里用 WebAssembly 运行 NES ROM。打开 .nes 文件即开始模拟。",
+  "version": "0.1.0",
+  "publisher": "local",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": ["onCustomEditor:simplenes.player"],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "simplenes.player",
+        "displayName": "SimpleNES",
+        "selector": [
+          {
+            "filenamePattern": "*.nes"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
+  }
+}

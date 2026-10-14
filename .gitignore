@@ -4,5 +4,10 @@
 *.kdev4
 .kdev*
 build/
+build-wasm/
+.tools/
+web/dist/
 .cache/
 compile_commands.json
+vscode-extension/media/SimpleNES.js
+*.vsix
